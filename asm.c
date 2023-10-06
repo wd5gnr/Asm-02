@@ -267,7 +267,7 @@ static const char *emessages[] = {
 #define ERR_UNRECOGNIZED_DIRECTIVE    (ERROR | 11)
     "Unrecognized assembler directive: %s",
 #define ERR_INVALID_LABEL             (ERROR | 12)
-    "Missing ':' at label: %s",
+    "Invalid label: %s",
 #define ERR_PREPROC_FIRST             (ERROR | 13)
     "Preprocessor directive must be at start of line",
 #define ERR_INVALID_OPERANDS          (ERROR | 14)
@@ -916,7 +916,7 @@ char *evaluate(char *pos, dword *result)
             while ((*pos >= 'a' && *pos <= 'z') ||
                    (*pos >= 'A' && *pos <= 'Z') ||
                    (*pos >= '0' && *pos <= '9') ||
-                   *pos == '_' || *pos == '!')
+                   *pos == '_' || *pos == '!' || *pos == '$')
             {
               token[p++] = *pos++;
             }
@@ -1543,10 +1543,10 @@ int defReplaceEng(char *line, unsigned recurselevel)
   int rv=0;  // 0 means no changes
 
   if (recurselevel > MAXDEFINERECURSE)
-    {
-      doError(ERR_DEFINE_NESTING_DEPTH);
-      return 0;
-    }
+  {
+    doError(ERR_DEFINE_NESTING_DEPTH);
+    return 0;
+  }
 
   for (i = 0; i < numDefines; i++)
   {
@@ -1568,8 +1568,8 @@ int defReplaceEng(char *line, unsigned recurselevel)
         strcat(buffer, defineValues[i]);
         strcat(buffer, pchar + strlen(defines[i]));
         strcpy(line, buffer);
-	      flag=0;
-	      rv=1;
+        flag=0;
+        rv=1;
       }
     }
   }
@@ -2054,7 +2054,7 @@ void Asm(char *line)
     while ((*line >= 'a' && *line <= 'z') ||
            (*line >= 'A' && *line <= 'Z') ||
            (*line >= '0' && *line <= '9') ||
-           *line == '_' || *line == '!')
+           *line == '_' || *line == '!' || *line == '$')
     {
       label[pos++] = *line++;
     }
@@ -2103,6 +2103,28 @@ void Asm(char *line)
   if (passNumber == 1 && strlen(label) > 0)
   {
     addLabel(label, address);
+  }
+  if ((strlen(opcode) == 0) && (strlen(args) != 0))
+  {
+    char *end = args;
+
+    while ((*end != ':' && *end != ' ' &&
+            *end != '\t' && *end != '\0'))
+    {
+      end++;
+    }
+    *end = '\0';
+
+    if (strlen(label) == 0)
+    {
+      doError(ERR_INVALID_LABEL, args);
+      return;
+    }
+    else
+    {
+      doError(ERR_UNKNOWN_OPCODE, args);
+      return;
+    }
   }
   if (strlen(opcode) > 0)
   {
@@ -2743,7 +2765,7 @@ void processOption(int c, int index, char *option)
     exit(1);
     break;
   case 'v':
-    printf("Asm/02 v1.8\n");
+    printf("Asm/02 v1.9\n");
     printf("by Michael H. Riley\n");
     printf("with contributions by:\n");
     printf("  Tony Hefner\n");
